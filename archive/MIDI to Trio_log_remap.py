@@ -32,7 +32,7 @@ TPB = 480  # ticks per beat
 # Instrument ranges (MIDI note numbers)
 FLUTE_RANGE = (60, 96)      # roughly C4–C7+
 VIOLA_RANGE = (48, 72)      # C3–C6
-BASSOON_RANGE = (48, 55)    # C3–G3 (you said you like C3/G3 region)
+BASSOON_RANGE = (48, 55)    # C3–G3
 
 # C major scale (pitch classes)
 C_MAJOR_PCS = [0, 2, 4, 5, 7, 9, 11]
@@ -138,7 +138,7 @@ FLUTE_CH = 0
 VIOLA_CH = 1
 BASSOON_CH = 2
 
-# Fixed durations (you can tweak)
+# Fixed durations 
 FLUTE_DUR = TPB        # 1 beat
 VIOLA_DUR = TPB * 2    # 2 beats
 BASSOON_DUR = TPB * 4  # 4 beats (slower, more sustained)
@@ -154,7 +154,7 @@ for i, (raw_note, raw_vel) in enumerate(melody):
 
     # --- Viola (harmony) ---
     viola_note = generate_viola_harmony(raw_note)
-    viola_vel = raw_vel  # you can also scale this if you want it softer
+    viola_vel = raw_vel  
     viola_track.append(Message('note_on', note=viola_note, velocity=viola_vel,
                                time=0, channel=VIOLA_CH))
     viola_track.append(Message('note_off', note=viola_note, velocity=viola_vel,
