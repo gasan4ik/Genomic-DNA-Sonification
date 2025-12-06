@@ -1,274 +1,250 @@
 # Genomic-DNA-Sonification
-# The Sonic Array of Rhythmic Alleles (SARA)
+## The Sonic Array of Rhythmic Alleles (SARA)
 ### Giving Voice to Genomic DNA Through FTIR Sonification
 
-This repository contains the analysis and sonification pipeline for **SARA – The Sonic Array of Rhythmic Alleles**, a framework that converts **FTIR spectra of genomic DNA** into structured **musical compositions**.
+This repository contains the code for **SARA – The Sonic Array of Rhythmic Alleles**, a framework that converts **Fourier Transform Infrared (FTIR) spectra of genomic DNA** into structured **musical compositions**.
 
-The code implements:
+The pipeline implements:
 
-- Reconstruction of **interferograms** from transmittance spectra,
-- Feature extraction from interferograms (peaks, distances, widths, intensities),
-- **Parameter-mapping sonification** from spectral features to:
+- Reconstruction of **interferograms** from transmittance spectra (optional),
+- Feature extraction from interferograms (peaks, spacing, widths, intensities),
+- **Parameter-mapping sonification** of these features into:
   - pitch,
   - dynamics (loudness),
   - duration (rhythm),
   - spatialization (pan),
-- Generation of **MIDI files** suitable for analysis and performance,
+- Generation of **MIDI files** for listening, analysis, or performance,
 - Quantitative **MIDI characterization**,
-- Optional **harmonic arrangements** (duet and trio) optimized for human listening.
+- Optional **trio arrangements** optimized for human listening (flute–viola–bassoon).
 
-**If you use this code in research, teaching, or creative work, please cite the associated SARA manuscript.**
+> If you use this code in research, teaching, or creative work, please cite the associated SARA manuscript.
+
 ---
-Dependencies
 
-Tested with Python 3.10+.
+## Dependencies
+
+Tested with **Python 3.10+**.
 
 Core packages:
 
-numpy
-
-pandas
-
-matplotlib
-
-seaborn
-
-scipy
-
-mido
-
-midiutil
-
-music21 (for some harmony experiments)
+- `numpy`  
+- `pandas`  
+- `matplotlib`  
+- `seaborn`  
+- `scipy`  
+- `mido`  
+- `midiutil`  
+- `music21`  (for some arrangement scripts)
 
 Install (for example):
 
+```bash
 pip install numpy pandas matplotlib seaborn scipy mido midiutil music21
+```
 
-Workflow Overview
-1. (Optional) Reconstruct interferogram from transmittance
+---
 
-Script: IFFT_file.py
+## Workflow Overview
 
-Input: CSV file with wavenumber (cm⁻¹) and normalized transmittance.
+### 1. (Optional) Reconstruct interferogram from transmittance
 
-Steps:
+**Script:** `IFFT_file.py`  
 
-Sorts and interpolates the spectrum to a uniform wavenumber grid,
+**Input:** CSV with **wavenumber (cm⁻¹)** and **normalized transmittance**.
 
-Converts to an “absorbance-like” spectrum (1 - T),
+The script:
 
-Mean-centers to remove the DC component,
+- Sorts and interpolates the spectrum to a uniform wavenumber grid,  
+- Converts to a simple “absorbance-like” spectrum (`1 − T`),  
+- Mean-centers it to remove the DC component,  
+- Applies an inverse FFT (IFFT) to approximate the interferogram,  
+- Maps the result onto a symmetric OPD axis (e.g., −0.25 cm to +0.25 cm),  
+- Saves: `interferogram_from_transmittance.csv`.
 
-Uses inverse FFT (IFFT) to approximate the interferogram,
+Usage: edit the `file_path` inside the script, then:
 
-Maps the result onto a symmetric OPD axis (e.g., -0.25 cm to +0.25 cm),
-
-Saves: interferogram_from_transmittance.csv.
-
-Usage (edit the file path inside the script):
-
-file_path = "data_examples/transmittance_example.csv"
-
-
-Run:
-
+```bash
 python IFFT_file.py
+```
 
+You can skip this step if you already have an interferogram in **OPD vs intensity** form.
 
-You can skip this step if you already have an interferogram in OPD vs intensity form.
+---
 
-2. Main sonification: interferogram → monophonic MIDI
+### 2. Main sonification: interferogram → monophonic MIDI
 
-Script: SARA_IFG_to_MIDI.py
+**Script:** `SARA_IFG_to_MIDI.py`  
 
-Input: CSV with OPD (cm) and interferogram intensity (e.g., OPD corrected IFG baseline corrected.csv).
+**Input:** CSV with **OPD (cm)** and **interferogram intensity**  
+(e.g. `OPD corrected IFG baseline corrected.csv`).
 
-Steps:
+**Preprocessing**
 
-Preprocessing
+- Normalize intensities to [0, 1],  
+- Smooth the interferogram using a Savitzky–Golay filter.
 
-Normalize intensity to [0, 1],
+**Peak detection & feature extraction**
 
-Smooth with a Savitzky–Golay filter.
+- Detect peaks in the smoothed interferogram,  
+- Extract for each peak:
+  - intensity,
+  - spacing to the next peak (periodicity-like measure),
+  - approximate width,
+  - local intensity gradient.
 
-Peak detection & feature extraction
+**Mapping to musical parameters**
 
-Detect peaks along OPD,
+- **Pitch:**  
+  - Peak spacing is converted into a frequency-like quantity,  
+  - Frequencies are mapped to MIDI using a standard log formula,  
+  - Pitches are smoothed and projected onto **C major**,  
+  - Finally rescaled into the MIDI range [21, 108].
 
-Extract:
+- **Dynamics (loudness):**  
+  - Derived from normalized peak intensities,  
+  - Smoothed with a short moving average,  
+  - Slightly raised or lowered depending on the local intensity gradient to create gentle crescendos/decrescendos.
 
-peak intensities,
+- **Duration:**  
+  - Derived from peak widths using a simple nonlinear transform,  
+  - Quantized and lightly modulated to introduce small rhythmic variations.
 
-inter-peak distances (periodicity),
+- **Pan (stereo position):**  
+  - Mapped from normalized OPD position (0 → left, 1 → right).
 
-approximate widths,
+- **Tempo:**  
+  - Base tempo is **60 BPM**; a smoothly varying tempo curve can be computed but is not essential for basic use.
 
-intensity gradients at peaks.
+**MIDI generation**
 
-Mapping to musical parameters
+- The script prompts for instrumentation:
+  - `default` → single-instrument (piano-like) rendering,
+  - `dynamic` → cycles through a small set of General MIDI instruments.
+- Main output: **`harmonic_1.mid`**  
+  (this is the primary monophonic SARA line analyzed in the manuscript).
 
-Pitch:
+**Figures produced (PDF, 300 dpi, transparent background)**
 
-Frequencies ∝ 1 / (inter-peak distance),
-
-Mapped to MIDI using 12 * log2(f / 440) + 69,
-
-Smoothed and snapped to C major,
-
-Compressed into the MIDI range [21, 108].
-
-Dynamics:
-
-Derived from normalized peak intensities,
-
-Smoothed and shaped with trend-based crescendos/decrescendos.
-
-Duration:
-
-Derived from peak widths using log(1 + width),
-
-Quantized and lightly modulated for syncopation.
-
-Pan:
-
-Derived from normalized OPD position (0 → left, 1 → right).
-
-Tempo
-
-Base tempo = 60 BPM, with optional smooth variations (not required for basic use).
-
-MIDI generation
-
-Prompts for instrumentation:
-
-default → single-instrument piano-like rendering,
-
-dynamic → cycles through several General MIDI instruments.
-
-Output: harmonic_1.mid
-
-Output figures (PDFs, high-resolution, transparent background):
-
-interferogram_with_peaks.pdf
-
-decoded_midi_notes.pdf
-
-mapped_parameters.pdf
-
-timeline_parameters.pdf
-
-heatmap_musical_parameters.pdf (correlation matrix of pitch, duration, dynamics, pan)
+- `interferogram_with_peaks.pdf`  
+- `decoded_midi_notes.pdf`  
+- `mapped_parameters.pdf`  
+- `timeline_parameters.pdf`  
+- `heatmap_musical_parameters.pdf` (correlation of pitch, duration, dynamics, pan)
 
 Usage (edit the CSV path at the top, then run):
 
+```bash
 python SARA_IFG_to_MIDI.py
+```
 
-3. Alternate mapping variant (v2) 
+---
 
-Script: SARA_IFG_to_MIDI_v2.py (name may differ slightly in your repo)
+### 3. MIDI characterization
 
-Same core logic as SARA_IFG_to_MIDI.py, but:
+**Script:** `MIDICharacterization.py`  
 
-Uses slightly different mapping or smoothing choices.
+**Input:** a MIDI file (typically `harmonic_1.mid`).
 
-Outputs a different main MIDI file, e.g.:
+The script:
 
-4. MIDI characterization
+- Reads all note events,  
+- Extracts:
+  - pitches,
+  - velocities (dynamics),
+  - durations (in ticks),
+  - basic timing information.
 
-Script: MIDICharacterization.py
+Generates:
 
-Input: a MIDI file (e.g. harmonic_1.mid).
+- `pitch_distribution.pdf`  
+  Histogram of MIDI pitches (used for pitch distribution analysis in the paper).
 
-Extracts:
+- `mapped_parameters.pdf`  
+  Combined plot of pitch and dynamics vs note index.
 
-pitches,
+- `dynamics_over_time.pdf`  
+  Dynamics vs note index (expressive contour).
 
-velocities (dynamics),
+- `note_durations.pdf`  
+  Distribution of note durations.
 
-durations (in ticks),
+To analyze a different MIDI, edit:
 
-index-based timing.
+```python
+midi_file_path = "harmonic_1.mid"
+```
 
-Produces:
+and run:
 
-pitch_distribution.pdf
-Histogram of MIDI pitches – corresponds to pitch distribution analyses in the manuscript.
-
-mapped_parameters.pdf
-Combined plot of pitch and dynamics over note index.
-
-dynamics_over_time.pdf
-Dynamics vs note index, showing the expressive contour.
-
-note_durations.pdf
-Duration distribution across notes.
-
-You can switch the input MIDI at the top:
-
-midi_file_path = "midi_examples/harmonic_1.mid"
-
-
-Run:
-
+```bash
 python MIDICharacterization.py
+```
 
-5. Trio arrangement and merging (optional)
+---
 
-If you include trio scripts, they follow a pattern like:
+### 4. Diatonic vs chromatic content (C-major analysis)
 
-a) Trio arrangement script
+**Script:** `analyze_diatonic_fraction.py`  
 
-Script: e.g. trio_arrangement_trio_script.py
+**Input:** any MIDI file.
 
-Input: harmonic_1.mid.
+The script:
 
-Creates three parts (e.g., flute, viola, bassoon):
+- Computes how many notes fall inside vs. outside **C major**,  
+- Prints the fraction of **non-diatonic** notes and pitch-class counts.
 
-Flute:
+Usage:
 
-Main melodic line, snapped to C major and remapped into a higher range.
+```bash
+python analyze_diatonic_fraction.py harmonic_1.mid
+```
 
-Viola:
+This was used to verify the reported proportion of chromatic pitches in the manuscript.
 
-Harmonic line built via intervals (e.g., -3, -5, -7) and remapped into mid range.
+---
 
-Bassoon:
+### 5. Trio arrangements and merging (optional)
 
-Pedal / fifth-based low pattern (e.g., alternating C3 and G3), softer dynamics.
+These scripts are **downstream arrangements** that take the monophonic SARA line (`harmonic_1.mid`) and re-voice it for a small ensemble. They do **not** change the underlying sonification mapping; they present it in a more idiomatic musical form.
 
-Output: three separate MIDIs:
+#### a) Trio arrangement (flute–viola–bassoon)
 
-Flute.mid
+**Script:** e.g. `trio_transformation.py`  
 
-Viola.mid
+- Input: `harmonic_1.mid`.  
+- Produces three monophonic parts:
 
-Bassoon.mid
+  - **Flute**  
+    - Main melodic line, snapped to C major, remapped to a higher register.
 
-b) Merge and pad into a synchronized trio
+  - **Viola**  
+    - Harmony line derived from intervals applied to the melody and remapped to a mid register.
 
-Script: merge_trio_with_padding.py (or similar)
+  - **Bassoon**  
+    - Low C3–G3 pedal / fifth pattern with softer dynamics, providing a harmonic foundation.
 
-Input:
+- Output example:
 
-Flute.mid, Viola.mid, Bassoon.mid.
+  - `Flute.mid`  
+  - `Viola.mid`  
+  - `Bassoon.mid`
 
-Steps:
+#### b) Merge and pad into a synchronized trio
 
-Loads each file,
+**Script:** e.g. `merge_trio_with_padding.py`  
 
-Normalizes ticks_per_beat if needed,
+**Input:**  
+`Flute.mid`, `Viola.mid`, `Bassoon.mid`.
 
-Preserves tempo and key meta from the first file,
+The script:
 
-Assigns each instrument to its own MIDI channel,
+- Loads each part and normalizes `ticks_per_beat` if needed,  
+- Preserves tempo / key meta from the first file,  
+- Assigns each instrument to its own MIDI channel,  
+- Pads shorter tracks so all three parts end together,  
+- Ensures proper end-of-track markers.
 
-Aligns and pads tracks so they end together,
+**Output:**  
+`Merged_Trio_FullPreservation_Padded.mid`  
 
-Ensures proper end-of-track markers.
-
-Output:
-
-Merged_Trio_FullPreservation_Padded.mid (or similar name)
-
-This is the version you’d typically export to audio (DAW / notation software).
+This merged file is what you would typically import into a DAW (e.g. Ableton Live) or notation software for rendering and performance.
