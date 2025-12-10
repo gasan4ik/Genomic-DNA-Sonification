@@ -33,9 +33,7 @@
 # Author: Hasan Babazada, Ph.D.
 # Date: 02/20/2025
 # Email: gasan4ik@hotmail.com
-#
-# Copyright (c) 2025 Hasan Babazada
-# SPDX-License-Identifier: MIT
+...
 #
 # This program is released under the MIT License.
 # See the LICENSE file in the repository root for the full text.
@@ -50,7 +48,7 @@ import seaborn as sns
 from scipy.interpolate import interp1d
 
 # Load interferogram data with x-axis in OPD
-file_path = 'PATH to interferogram data'  # Replace with your file path
+file_path = '/Users/hmb/Desktop/DNA music/Leonardo/src/data/OPD corrected IFG baseline corrected.csv'  # Replace with your file path
 data = pd.read_csv(file_path)
 
 # Extract x (OPD) and y (Intensity) values
@@ -66,12 +64,18 @@ y_smoothed = savgol_filter(y_normalized, window_length=11, polyorder=3)
 
 # Step 2: Extract Key Features
 # Identify peaks in the smoothed interferogram with dynamic threshold and distance adjustments
-peak_height_threshold = 0.1
-peak_distance = 10
-peaks, _ = find_peaks(y_smoothed, height=peak_height_threshold, distance=peak_distance)
+...
+peaks, properties = find_peaks(
+    y_smoothed,
+    height=np.mean(y_smoothed) + 0.1 * np.std(y_smoothed),
+    distance=5
+)
 
-# Extract peak intensities, distances, widths, and gradient information
+# Extract peak positions (OPD), intensities, and distances between peaks
+peak_positions = x_opd[peaks]
 peak_intensities = y_smoothed[peaks]
+
+# Compute inter-peak distances, widths, and gradients
 peak_distances = np.diff(x_opd[peaks])
 peak_widths = np.diff(peak_distances, prepend=0)
 peak_gradients = np.gradient(y_smoothed)[peaks]  # Intensity gradient at peaks
@@ -87,7 +91,7 @@ plt.ylabel("Normalized Intensity (a.u.)")
 plt.title("Smoothed Interferogram with Detected Peaks")
 plt.grid(True, linestyle="--", alpha=0.5)
 plt.legend()
-
+plt.tight_layout()
 # Save as high-resolution PDF for the manuscript
 plt.savefig(
     "interferogram_with_peaks.pdf",
@@ -114,24 +118,31 @@ pitches = np.clip(pitches, 21, 108)
 pitches_smooth = savgol_filter(pitches, window_length=7, polyorder=2)
 
 # Map smoothed pitches to a harmonic scale (C major)
-scale = [60, 62, 64, 65, 67, 69, 71]  # C Major scale
-pitches_harmonic = [scale[int(p % len(scale))] for p in pitches_smooth]
+...
+# Example harmonic mapping (placeholder)
+# In practice, you would map to nearest C-major pitch class:
+#   C, D, E, F, G, A, B  -> MIDI classes {0, 2, 4, 5, 7, 9, 11}
+pitches_harmonic = pitches_smooth  # Replace with actual scale-snapping logic
 
-# Map peak intensities to dynamics (velocity) with scaling for smoother variations
-scaling_dynamic = 1.2  # Scale factor for dynamics
-dynamics = np.clip((peak_intensities * 127 * scaling_dynamic).astype(int), 0, 127)
+# Map peak intensities to dynamics (MIDI velocities)
+alpha = 1.0
+dynamics_raw = alpha * peak_intensities * 127
+dynamics_raw = np.clip(dynamics_raw, 0, 127)
 
-# Smooth dynamics using a moving average
+# Smooth dynamics with a short moving average
 window_size = 5
-dynamics_smooth = np.convolve(dynamics, np.ones(window_size) / window_size, mode='same')
+kernel = np.ones(window_size) / window_size
+dynamics_smooth = np.convolve(dynamics_raw, kernel, mode="same")
 
-# Add crescendos/decrescendos based on peak trends
-trends = np.gradient(peak_intensities)
-trend_dynamics = np.where(trends > 0, dynamics_smooth + 10, dynamics_smooth - 10)
-dynamics = np.clip(trend_dynamics, 0, 127)
+# Adjust dynamics based on local intensity gradient:
+#   positive gradient -> slightly louder, negative -> slightly softer
+gradient_sign = np.sign(peak_gradients)
+dynamics = dynamics_smooth + 10 * gradient_sign
+dynamics = np.clip(dynamics, 0, 127)
 
-# Map peak widths to note durations using logarithmic scaling
-durations = np.log1p(peak_widths)
+# Map peak widths / distances to durations (in beats)
+widths = np.abs(peak_widths) + 1e-6  # avoid log(0)
+durations = np.log(1 + widths)
 durations = np.clip(durations, 0.5, 2)
 
 # Quantize durations to the nearest 0.5 (e.g., eighth notes)
@@ -168,28 +179,17 @@ durations = durations[:min_length]  # keep durations aligned for plotting
 
 # Function to decode MIDI pitches into note names
 def midi_to_note_name(midi_pitches):
-    note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    notes = []
-    for pitch in midi_pitches:
-        note = note_names[int(pitch) % 12]  # Get the note within an octave
-        octave = int(pitch) // 12 - 1       # Calculate the octave number
-        notes.append(f"{note}{octave}")
-    return notes
+    note_names = ['C', 'C#', 'D', 'D#', 'E',
+                  'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+    decoded_notes = []
+    for midi_value in midi_pitches:
+        midi_int = int(round(midi_value))
+        name = note_names[midi_int % 12]
+        octave = (midi_int // 12) - 1
+        decoded_notes.append(f"{name}{octave}")
+    return decoded_notes
 
-# Decode the generated pitches
 decoded_notes = midi_to_note_name(pitches)
-print("Generated Notes:", decoded_notes)
-
-plt.figure(figsize=(12, 6))
-plt.bar(range(len(decoded_notes)), pitches, color='skyblue', label='MIDI Pitch')
-plt.xticks(range(len(decoded_notes)), decoded_notes, rotation=45, ha='right')
-plt.xlabel('Note Index')
-plt.ylabel('MIDI Pitch')
-plt.title('Decoded MIDI Notes')
-plt.legend()
-plt.grid()
-plt.savefig('decoded_midi_notes.pdf', format='pdf', dpi=300, transparent=True, bbox_inches='tight')
-plt.close()
 
 # Step 5: Generate MIDI File
 midi = MIDIFile(1)  # Single track
@@ -201,7 +201,7 @@ channel = 0
 choice = input("Choose instrumentation type (default/dynamic): ").strip().lower()
 use_dynamic_instrumentation = (choice == "dynamic")
 
-midi.addTrackName(track, time, "Interferogram Symphony")
+# Add tempo to the MIDI track
 midi.addTempo(track, time, tempo)
 
 # Assign instruments (default: Acoustic Grand Piano)
@@ -216,7 +216,7 @@ dynamic_instruments = [
 ]
 
 # Ensure all parameters are the same length for MIDI writing
-n_notes = min(len(peaks), len(pitches), len(dynamics), len(syncopated_durations))
+n_notes = min(len(peaks), len(pitches), len(dynamics), len(syncopated_durations), len(pan_values))
 peaks = peaks[:n_notes]
 pitches = pitches[:n_notes]
 dynamics = dynamics[:n_notes]
@@ -230,6 +230,9 @@ if use_dynamic_instrumentation:
         pitch = int(pitches[i])
         velocity = int(dynamics[i])
         duration = float(syncopated_durations[i])
+        # Map normalized pan value [0, 1] to MIDI pan controller [0, 127]
+        pan_cc = int(np.clip(pan_values[i] * 127, 0, 127))
+        midi.addControllerEvent(track, channel, time, 10, pan_cc)
         midi.addNote(track, channel, pitch, time, duration, velocity)
         time += duration
 else:
@@ -239,6 +242,8 @@ else:
         pitch = int(pitches[i])
         velocity = int(dynamics[i])
         duration = float(syncopated_durations[i])
+        pan_cc = int(np.clip(pan_values[i] * 127, 0, 127))
+        midi.addControllerEvent(track, channel, time, 10, pan_cc)
         midi.addNote(track, channel, pitch, time, duration, velocity)
         time += duration
 
@@ -263,51 +268,29 @@ plt.close()
 
 # Additional Data Visualization: Timeline (durations + dynamics vs index)
 plt.figure(figsize=(12, 6))
-plt.plot(range(len(decoded_notes)), durations, label='Durations', marker='o')
-plt.plot(range(len(decoded_notes)), dynamics, label='Dynamics', marker='s')
-plt.title('Timeline of Musical Parameters')
+plt.plot(range(len(decoded_notes)), durations, label='Note Durations (beats)', marker='o')
+plt.plot(range(len(decoded_notes)), dynamics, label='Dynamics (Velocity)', marker='x')
+plt.title('Note Durations and Dynamics Over Time')
 plt.xlabel('Note Index')
-plt.ylabel('Parameter Value')
+plt.ylabel('Beats / Velocity')
 plt.legend()
-plt.grid()
-plt.savefig('timeline_parameters.pdf', format='pdf', dpi=300, transparent=True, bbox_inches='tight')
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.savefig('durations_dynamics_timeline.pdf', format='pdf', dpi=300, transparent=True, bbox_inches='tight')
 plt.close()
 
-# ---- Correlation Heatmap of Musical Parameters (Pitch, Duration, Dynamics, Pan) ----
-# For correlation, use:
-#   - pitches_harmonic     (before final rescaling)
-#   - syncopated_durations (final rhythmic values used in the piece)
-#   - dynamics_smooth      (before trend-based +/-10)
-#   - pan_values
-
-min_length_corr = min(
-    len(pitches_harmonic),
-    len(syncopated_durations),
-    len(dynamics_smooth),
-    len(pan_values)
-)
-
-pitch_corr = np.array(pitches_harmonic[:min_length_corr])
-dur_corr = np.array(syncopated_durations[:min_length_corr])
-dyn_corr = np.array(dynamics_smooth[:min_length_corr])
-pan_corr = np.array(pan_values[:min_length_corr])
-
-heatmap_df = pd.DataFrame({
-    "Pitch": pitch_corr,
-    "Duration": dur_corr,
-    "Dynamics": dyn_corr,
-    "Pan": pan_corr
+# Step 7: DataFrame and Correlation Heatmap
+df_params = pd.DataFrame({
+    "Pitch": pitches,
+    "Duration": durations,
+    "Dynamics": dynamics,
+    "Pan": pan_values
 })
 
-# Optional sanity check: make sure we actually have variance
-print("Std devs (Pitch, Duration, Dynamics, Pan):",
-      pitch_corr.std(), dur_corr.std(), dyn_corr.std(), pan_corr.std())
+# Compute correlation matrix
+corr_matrix = df_params.corr()
 
-corr_matrix = heatmap_df.corr()
-print("Correlation matrix (Pitch, Duration, Dynamics, Pan):")
-print(corr_matrix.round(2))
-
-plt.figure(figsize=(6, 5))
+# Visualize correlation heatmap
+plt.figure(figsize=(8, 6))
 sns.heatmap(
     corr_matrix,
     annot=True,
