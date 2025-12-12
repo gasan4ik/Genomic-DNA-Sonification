@@ -22,9 +22,10 @@
 
 from mido import MidiFile
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Load the MIDI file
-midi_file_path = "PATH to MIDI file" # Replace with PATH to MIDI file
+midi_file_path = "PATH to MIDI file"  # Replace with PATH to MIDI file
 midi = MidiFile(midi_file_path)
 
 # Initialize lists to collect data
@@ -43,25 +44,34 @@ for track in midi.tracks:
             velocities.append(msg.velocity)
             timestamps.append(current_time)
 
-# Calculate durations (difference between timestamps)
+# Calculate durations (difference between consecutive note-on timestamps)
 if len(timestamps) > 1:
     durations = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
 else:
     durations = [0] * len(timestamps)
 
-# Visualization 1: Pitch Distribution
+# ---------------------------------------------------------------------
+# Visualization 1: Pitch Distribution (5-semitone bins, MIDI 21–108)
+# ---------------------------------------------------------------------
 plt.figure(figsize=(10, 6))
-plt.hist(pitches, bins=range(21, 109), color='skyblue', edgecolor='black')
+
+# 5-semitone-wide bins covering the usable range [21, 108]
+# Edges: 21, 26, 31, ..., 106, 111  -> last bin [106, 111) captures 107–108
+bins = np.arange(21, 111, 5)
+
+plt.hist(pitches, bins=bins, color='skyblue', edgecolor='black')
 plt.title("Pitch Distribution")
 plt.xlabel("MIDI Pitch")
 plt.ylabel("Frequency")
 plt.grid()
 
-# Save the first plot as a PDF
-plt.savefig('pitch_distribution.pdf', format='pdf', dpi=300, transparent=True, bbox_inches='tight')
-plt.close()  # Close the figure to free up memory
+plt.savefig('pitch_distribution.pdf', format='pdf', dpi=300,
+            transparent=True, bbox_inches='tight')
+plt.close()
 
+# ---------------------------------------------------------------------
 # Visualization 2: Mapped Musical Parameters (pitches + dynamics)
+# ---------------------------------------------------------------------
 plt.figure(figsize=(12, 6))
 plt.bar(range(len(pitches)), pitches, color='blue', alpha=0.6, label='MIDI Pitches')
 plt.plot(velocities, color='red', marker='o', label='Dynamics (Velocity)')
@@ -71,11 +81,13 @@ plt.ylabel('MIDI Pitch / Dynamics')
 plt.legend()
 plt.grid()
 
-# Save the mapped-parameters plot as a PDF
-plt.savefig('mapped_parameters.pdf', format='pdf', dpi=300, transparent=True, bbox_inches='tight')
-plt.close()  # Close the figure to free up memory
+plt.savefig('mapped_parameters.pdf', format='pdf', dpi=300,
+            transparent=True, bbox_inches='tight')
+plt.close()
 
+# ---------------------------------------------------------------------
 # Visualization 3: Dynamics Over Time (by note index)
+# ---------------------------------------------------------------------
 plt.figure(figsize=(10, 6))
 plt.plot(velocities, label='Dynamics (Velocity)', marker='o')
 plt.title("Dynamics Over Time")
@@ -84,11 +96,13 @@ plt.ylabel("Velocity")
 plt.legend()
 plt.grid()
 
-# Save the dynamics-over-time plot as a PDF
-plt.savefig('dynamics_over_time.pdf', format='pdf', dpi=300, transparent=True, bbox_inches='tight')
-plt.close()  # Close the figure to free up memory
+plt.savefig('dynamics_over_time.pdf', format='pdf', dpi=300,
+            transparent=True, bbox_inches='tight')
+plt.close()
 
+# ---------------------------------------------------------------------
 # Visualization 4: Note Durations
+# ---------------------------------------------------------------------
 plt.figure(figsize=(10, 6))
 plt.bar(range(len(durations)), durations, color='orange', edgecolor='black')
 plt.title("Note Durations")
@@ -96,6 +110,6 @@ plt.xlabel("Note Index")
 plt.ylabel("Duration (ticks)")
 plt.grid()
 
-# Save the note-durations plot as a PDF
-plt.savefig('note_durations.pdf', format='pdf', dpi=300, transparent=True, bbox_inches='tight')
-plt.close()  # Close the figure to free up memory
+plt.savefig('note_durations.pdf', format='pdf', dpi=300,
+            transparent=True, bbox_inches='tight')
+plt.close()
