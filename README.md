@@ -76,7 +76,7 @@ You can skip this step if you already have an interferogram in **OPD vs intensit
 **Script:** `SARA_IFG_to_MIDI.py`  
 
 **Input:** CSV with **OPD (cm)** and **interferogram intensity**  
-(e.g. `OPD corrected IFG baseline corrected.csv`).
+(e.g. `IFG.csv`).
 
 **Preprocessing**
 
@@ -143,7 +143,7 @@ python SARA_IFG_to_MIDI.py
 
 **Script:** `MIDICharacterization.py`  
 
-**Input:** a MIDI file (typically `harmonic_1.mid`).
+**Input:** a MIDI file (eg. `harmonic_1.mid`).
 
 The script:
 
@@ -247,4 +247,4 @@ The script:
 **Output:**  
 `Merged_Trio_FullPreservation_Padded.mid`  
 
-This merged file is what you would typically import into a DAW (e.g. Ableton Live) or notation software for rendering and performance.
+This merged file is what you would typically import into a DAW or notation software for rendering and performance.
