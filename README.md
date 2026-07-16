@@ -17,7 +17,7 @@ The pipeline implements:
 - Quantitative **MIDI characterization**,
 - Optional **trio arrangements** optimized for human listening (flute–viola–bassoon).
 
-> If you use this code in research, teaching, or creative work, please cite the associated SARA manuscript:
+If you use this code in research, teaching, or creative work, please cite the associated SARA manuscript:
 > Hasan Babazada; Sonic Array of Rhythmic Alleles (SARA): Giving Voice to Genomic DNA Through the Sonification of Fourier Transform Infrared Spectroscopy (FTIR) Data. Leonardo 2026; doi: https://doi.org/10.1162/LEON.a.2754
 
 ---
